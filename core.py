@@ -192,9 +192,9 @@ class DSAF(nn.Module):
         return out
 
 
-class S2DConv(nn.Module):
+class SD(nn.Module):
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, d=1, act=True):
-        super(S2DConv, self).__init__()
+        super(SD, self).__init__()
         self.block_size = 2
         c1 = c1 * 4
         self.depthwise_conv = nn.Conv2d(c1, c1, k, s, autopad(k, p, d), groups=c1, dilation=d, bias=False)
