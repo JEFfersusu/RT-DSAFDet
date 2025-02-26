@@ -7,8 +7,8 @@ The paper is freely available at: [https://www.researchgate.net/publication/3887
 
 The paper with code URL is as follows: https://paperswithcode.com/paper/real-time-dynamic-scale-aware-fusion.
 
-Website dataset website at: https://zenodo.org/records/8429208.
+Website dataset at: https://zenodo.org/records/8429208.
 
-Can be applied to YOLO annotation of UAV-PDD2023 data set can be obtained from Baidu Net Disk. https://pan.baidu.com/s/1PolGlViPwZIuTuITKWAarg?pwd=py8m code: py8m.
+Can be applied to YOLO annotation of UAV-PDD2023 dataset can be obtained from Baidu Net Disk. https://pan.baidu.com/s/1PolGlViPwZIuTuITKWAarg?pwd=py8m code: py8m.
 
 If you need help, please contact me at panweichao01@outlook.com.
