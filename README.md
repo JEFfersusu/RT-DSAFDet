@@ -9,6 +9,6 @@ The paper with code URL is as follows: https://paperswithcode.com/paper/real-tim
 
 Website dataset at: https://zenodo.org/records/8429208.
 
-Can be applied to YOLO annotation of UAV-PDD2023 dataset can be obtained from Baidu Net Disk. https://pan.baidu.com/s/1PolGlViPwZIuTuITKWAarg?pwd=py8m code: py8m.
+Can be applied to YOLO annotation of UAV-PDD2023 dataset can be obtained from Baidu Net Disk. [https://pan.baidu.com/s/1PolGlViPwZIuTuITKWAarg?pwd=py8m code: py8m.](https://pan.baidu.com/s/1b-IbYSvx58Y85eP8AFq_XA?pwd=tu1w).
 
 If you need help, please contact me at panweichao01@outlook.com.
