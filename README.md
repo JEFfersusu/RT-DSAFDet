@@ -12,3 +12,21 @@ Website dataset at: https://zenodo.org/records/8429208.
 Can be applied to YOLO annotation of UAV-PDD2023 dataset can be obtained from Baidu Net Disk. [https://pan.baidu.com/s/1PolGlViPwZIuTuITKWAarg?pwd=py8m code: py8m.](https://pan.baidu.com/s/1b-IbYSvx58Y85eP8AFq_XA?pwd=tu1w).
 
 If you need help, please contact me at panweichao01@outlook.com.
+## Citation
+If you think that our work is useful to your research, please cite using this BibTeX:
+```bibtex
+@article{Pan2025,
+  author = {Pan, Weichao and Wang, Xu and Huan, Wenqing},
+  title = {Real-time dynamic scale-aware fusion detection network: take road damage detection as an example},
+  journal = {Journal of Real-Time Image Processing},
+  volume = {22},
+  number = {2},
+  pages = {55},
+  year = {2025},
+  month = {February},
+  doi = {10.1007/s11554-025-01634-w},
+  url = {https://doi.org/10.1007/s11554-025-01634-w},
+  issn = {1861-8219}
+}
+
+```
