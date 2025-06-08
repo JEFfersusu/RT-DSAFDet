@@ -192,30 +192,45 @@ class DSAF(nn.Module):
         return out
 
 
+import torch
+import torch.nn as nn
+def autopad(k, p=None, d=1):
+    if d > 1:
+        k = d * (k - 1) + 1 if isinstance(k, int) else [d * (x - 1) + 1 for x in k] 
+    if p is None:
+        p = k // 2 if isinstance(k, int) else [x // 2 for x in k]
+    return p
 class SD(nn.Module):
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, d=1, act=True):
         super(SD, self).__init__()
         self.block_size = 2
         c1 = c1 * 4
-        self.depthwise_conv = nn.Conv2d(c1, c1, k, s, autopad(k, p, d), groups=c1, dilation=d, bias=False)
+        self.depthwise_conv = nn.Conv2d(c1, c1, k, 1, autopad(k, p, d), groups=c1, dilation=d, bias=False)
         self.bn1 = nn.BatchNorm2d(c1)
         self.pointwise_conv = nn.Conv2d(c1, c2, 1, 1, padding=0)
         self.bn2 = nn.BatchNorm2d(c2)
         self.act = nn.SiLU()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.max_pool = nn.AdaptiveMaxPool2d(1)
+
     def forward(self, x):
+        print(x.shape)
         batch_size, channels, height, width = x.size()
         new_channels = channels * (self.block_size ** 2)
         new_height = height // self.block_size
         new_width = width // self.block_size
+
         x = x.unfold(2, self.block_size, self.block_size).unfold(3, self.block_size, self.block_size)
         x = x.contiguous().view(batch_size, channels, new_height, new_width, -1)
         x = x.permute(0, 1, 4, 2, 3).contiguous()
         x = x.view(batch_size, new_channels, new_height, new_width)
+
         x = self.bn1(self.depthwise_conv(x))
-        avg_pool = self.avg_pool(x)
-        max_pool = self.max_pool(x)
-        x = x+avg_pool+max_pool
-        x = self.bn2(self.pointwise_conv(x))
-        return self.act(x)
+
+        x = self.pointwise_conv(x)
+        x = self.bn2(x)
+        x = self.act(x)
+
+        avg_out = torch.mean(x, dim=1, keepdim=True)     
+        max_out, _ = torch.max(x, dim=1, keepdim=True)  
+        x = x + avg_out + max_out                       
+        print(x.shape)
+        return x
