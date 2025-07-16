@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-# from ultralytics.ops_dcnv3.modules.dcnv3 import DCNv3_pytorch  # pytorch版
+
 import math
 from torchvision.ops import nms
 
@@ -151,71 +151,13 @@ class TripletAttention(nn.Module):
             x_out = 1 / 2 * (x_out11 + x_out21)
         return x_out
 
-# class DCNv3_PyTorch(nn.Module):
-#     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, groups=1, dilation=1):
-#         super().__init__()
-#         self.conv = Conv(in_channels, out_channels, k=1)
-#         self.dcnv3 = DCNv3_pytorch(out_channels, kernel_size=kernel_size, stride=stride, group=groups, dilation=dilation)
-#         self.bn = nn.BatchNorm2d(out_channels)
-#         self.gelu = nn.GELU()
-
-#     def forward(self, x):
-#         x = self.conv(x)
-#         x = x.permute(0, 2, 3, 1)
-#         x = self.dcnv3(x)
-#         x = x.permute(0, 3, 1, 2)
-#         x = self.gelu(self.bn(x))
-#         return x
-
-class MSBlockLayer(nn.Module):
-    def __init__(self, inc, ouc, k) -> None:
-        super().__init__()
-        self.in_conv = Conv(inc, ouc, 1)
-        self.mid_conv = Conv(ouc, ouc, k, g=ouc)
-        self.out_conv = Conv(ouc, inc, 1)
-
-    def forward(self, x):
-        return self.out_conv(self.mid_conv(self.in_conv(x)))
-
-class MSBlock(nn.Module):
-    def __init__(self, inc, ouc, kernel_sizes, in_expand_ratio=3., mid_expand_ratio=2., layers_num=3, in_down_ratio=2.) -> None:
-        super().__init__()
-        in_channel = int(inc * in_expand_ratio // in_down_ratio)
-        self.mid_channel = in_channel // len(kernel_sizes)
-        groups = int(self.mid_channel * mid_expand_ratio)
-        self.in_conv = Conv(inc, in_channel)
-        self.mid_convs = []
-        for kernel_size in kernel_sizes:
-            if kernel_size == 1:
-                self.mid_convs.append(nn.Identity())
-                continue
-            mid_convs = [MSBlockLayer(self.mid_channel, groups, k=kernel_size) for _ in range(int(layers_num))]
-            self.mid_convs.append(nn.Sequential(*mid_convs))
-        self.mid_convs = nn.ModuleList(self.mid_convs)
-        self.out_conv = Conv(in_channel, ouc, 1)
-        self.attention = None
-
-    def forward(self, x):
-        out = self.in_conv(x)
-        channels = []
-        for i, mid_conv in enumerate(self.mid_convs):
-            channel = out[:, i * self.mid_channel:(i + 1) * self.mid_channel, ...]
-            if i >= 1:
-                channel = channel + channels[i - 1]
-            channel = mid_conv(channel)
-            channels.append(channel)
-        out = torch.cat(channels, dim=1)
-        out = self.out_conv(out)
-        if self.attention is not None:
-            out = self.attention(out)
-        return out
-
 class Bottleneck_Combined(nn.Module):
     def __init__(self, c1, c2, shortcut=True, g=1, k=(3, 3), e=0.5):
         super().__init__()
         c_ = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, c_, k[0], 1)
-        self.cv2 = DCNv2(c_, c2, k[1], 1, groups=g)
+        #self.cv2 = DCNv2(c_, c2, k[1], 1, groups=g) #Due to the update of torch, there was a problem with DCNv2. Therefore, to make it run smoothly, we changed it to regular convolution.
+        self.cv2 = Conv(c_, c2, k[1], 1, groups=g)
         self.TripleAt = TripletAttention()
         self.add = shortcut and c1 == c2
 
@@ -242,70 +184,10 @@ class C2f_Combined(nn.Module):
         y = list(self.cv1(x).split((self.c, self.c), 1))
         y.extend(m(y[-1]) for m in self.m)
         return self.cv2(torch.cat(y, 1))
-# class MS_Combined(nn.Module):
-#     def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):
-#         super().__init__()
-#         self.c = int(c2 * e)  # hidden channels
-#         # self.cv1 = Conv(c1, 2 * self.c, 1, 1)
-#         # self.cv2 = Conv((2 + n) * self.c, c2, 1)  # optional act=FReLU(c2)
-#         self.m = nn.ModuleList(MSBlock(self.c, self.c, kernel_sizes=[3, 5, 7]) for _ in range(n))
 
-#     def forward(self, x):
-#         y = list(self.cv1(x).chunk(2, 1))
-#         y.extend(m(y[-1]) for m in self.m)
-#         return self.cv2(torch.cat(y, 1))
-
-#     def forward_split(self, x):
-#         y = list(self.cv1(x).split((self.c, self.c), 1))
-#         y.extend(m(y[-1]) for m in self.m)
-#         return self.cv2(torch.cat(y, 1))
-class FA_Block(nn.Module):
-    def __init__(self, in_channels, out_channels, shortcut=True, g=1, k=(3, 3), e=0.5):
-        super(FA_Block, self).__init__()
-        c = int(out_channels * e)
-        self.conv1 = Conv(in_channels, c, k=k[0])
-        self.dcn = DCNv2(c, c, k[1], 1, groups=g)
-        self.triplet_attention = TripletAttention()
-        self.conv2 = Conv(c, out_channels, k=1)
-        self.use_shortcut = shortcut and in_channels == out_channels
-
-    def forward(self, x):
-        identity = x
-        out = self.conv1(x)
-        out = self.dcn(out)
-        out = self.triplet_attention(out)
-        out = self.conv2(out)
-        if self.use_shortcut:
-            out += identity
-        return out
-
-class DSAF_Block(nn.Module):
-    def __init__(self, in_channels, out_channels, n=1, shortcut=True, g=1, e=0.5):
-        super(DSAF_Block, self).__init__()
-        self.c = int(out_channels * e)
-        self.cv1 = Conv(in_channels, (n + 1) * self.c, 1, 1)
-        self.cv2 = Conv((n + 1) * self.c, out_channels, 1, 1)
-        self.m = nn.ModuleList([FA_Block(self.c, self.c, shortcut, g, k=(3, 3)) for _ in range(n)])
-        self.shortcut = Conv(in_channels, (n + 1) * self.c, 1, 1) if in_channels != (n + 1) * self.c else nn.Identity()
-
-    def forward(self, x):
-        y = list(self.cv1(x).chunk(len(self.m) + 1, 1))
-        shortcut = self.shortcut(x)
-        
-        outputs = [y[0] + shortcut[:, :y[0].size(1), :, :]]  # Make sure shortcut matches the size
-
-        for i, m in enumerate(self.m):
-            y[i + 1] = y[i + 1] + shortcut[:, y[i + 1].size(1) * i: y[i + 1].size(1) * (i + 1), :, :]  # Pre-FA_Block residual connection
-            out = m(y[i + 1])
-            y[i + 1] = out + y[i + 1]  # Post-FA_Block residual connection
-            outputs.append(y[i + 1])
-
-        out = self.cv2(torch.cat(outputs, 1))
-        return out
 import torch
 import torch.nn as nn
- 
-# __all__ = ['S2DConv']
+
     
 def autopad(k, p=None, d=1):  # kernel, padding, dilation
     """Pad to 'same' shape outputs."""
