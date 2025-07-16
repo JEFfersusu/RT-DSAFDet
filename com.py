@@ -316,23 +316,26 @@ def autopad(k, p=None, d=1):  # kernel, padding, dilation
     return p    
 
 class S2DConv(nn.Module):
+
+    default_act = nn.SiLU()  
+ 
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, d=1, act=True):
-        super(S2DConv, self).__init__()
-        self.block_size = 2
+
+        super().__init__()
         c1 = c1 * 4
-        self.depthwise_conv = nn.Conv2d(c1, c1, k, s, autopad(k, p, d), groups=c1, dilation=d, bias=False)
-        self.bn1 = nn.BatchNorm2d(c1)
-        self.pointwise_conv = nn.Conv2d(c1, c2, 1, 1, padding=0)
-        self.bn2 = nn.BatchNorm2d(c2)
-        self.act = nn.SiLU()
+        self.conv = nn.Conv2d(c1, c2, k, s, autopad(k, p, d), groups=g, dilation=d, bias=False)
+        self.bn = nn.BatchNorm2d(c2)
+        self.act = self.default_act if act is True else act if isinstance(act, nn.Module) else nn.Identity()
+ 
     def forward(self, x):
-        batch_size, channels, height, width = x.size()
-        new_channels = channels * (self.block_size ** 2)
-        new_height = height // self.block_size
-        new_width = width // self.block_size
-        x = x.unfold(2, self.block_size, self.block_size).unfold(3, self.block_size, self.block_size)
-        x = x.contiguous().view(batch_size, channels, new_height, new_width, -1)
-        x = x.permute(0, 1, 4, 2, 3).contiguous()
+        x = torch.cat([x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]], 1)
+
+        return self.act(self.bn(self.conv(x)))
+ 
+    def forward_fuse(self, x):
+
+        x = torch.cat([x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]], 1)
+        return self.act(self.conv(x))
         x = x.view(batch_size, new_channels, new_height, new_width)
         return self.act(self.bn2(self.pointwise_conv(self.bn1(self.depthwise_conv(x)))))
 
